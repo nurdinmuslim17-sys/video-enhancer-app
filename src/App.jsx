@@ -2,8 +2,32 @@ import { useState } from "react";
 
 function App() {
   const [video, setVideo] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [bitrate, setBitrate] = useState(16);
+  const [progress, setProgress] = useState(0);
+  const [preset, setPreset] = useState("tiktok");
+  const [watermark, setWatermark] = useState(false);
+
+  const getBitrate = () => {
+    if (preset === "tiktok") return 16;
+    if (preset === "shopee") return 14;
+    return 12;
+  };
+
+  const handleFileChange = (file) => {
+    setVideo(file);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const simulateProgress = () => {
+    setProgress(0);
+    let percent = 0;
+    const interval = setInterval(() => {
+      percent += 10;
+      setProgress(percent);
+      if (percent >= 90) clearInterval(interval);
+    }, 500);
+  };
 
   const handleUpload = async () => {
     if (!video) {
@@ -13,10 +37,12 @@ function App() {
 
     const formData = new FormData();
     formData.append("video", video);
-    formData.append("bitrate", bitrate);
+    formData.append("bitrate", getBitrate());
+    formData.append("watermark", watermark);
 
     try {
       setLoading(true);
+      simulateProgress();
 
       const response = await fetch(
         "https://video-enhancer-backend-production.up.railway.app/upload",
@@ -26,25 +52,22 @@ function App() {
         }
       );
 
-      if (!response.ok) {
-        throw new Error("Upload gagal");
-      }
+      if (!response.ok) throw new Error("Processing gagal");
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      setProgress(100);
 
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "video-1080p-HD.mp4";
+      a.download = `video-1080p-${preset}.mp4`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-
       window.URL.revokeObjectURL(url);
 
-      alert("Video berhasil di-upscale ke 1080p HD!");
-    } catch (error) {
-      alert("Terjadi error: " + error.message);
+    } catch (err) {
+      alert("Error: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -52,28 +75,40 @@ function App() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>🎬 AI Video Enhancer</h1>
+      <h1 style={styles.title}>AI Video Enhancer PRO</h1>
       <p style={styles.subtitle}>
-        Upscale 720p → 1080p | Bitrate 12–16 Mbps | Siap Shopee & TikTok
+        Upscale 720p → 1080p HD • Optimized Marketplace Quality
       </p>
 
       <input
         type="file"
         accept="video/*"
-        onChange={(e) => setVideo(e.target.files[0])}
-        style={styles.input}
+        onChange={(e) => handleFileChange(e.target.files[0])}
       />
 
-      <div style={{ marginTop: 20 }}>
-        <label>Bitrate: {bitrate} Mbps</label>
-        <input
-          type="range"
-          min="12"
-          max="16"
-          value={bitrate}
-          onChange={(e) => setBitrate(e.target.value)}
-          style={{ width: "100%" }}
+      {preview && (
+        <video
+          src={preview}
+          controls
+          style={{ width: "100%", marginTop: 15, borderRadius: 10 }}
         />
+      )}
+
+      <div style={styles.options}>
+        <select value={preset} onChange={(e) => setPreset(e.target.value)}>
+          <option value="tiktok">TikTok 16 Mbps</option>
+          <option value="shopee">Shopee 14 Mbps</option>
+          <option value="standard">Standard 12 Mbps</option>
+        </select>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={watermark}
+            onChange={() => setWatermark(!watermark)}
+          />
+          Tambahkan Watermark
+        </label>
       </div>
 
       <button
@@ -81,33 +116,74 @@ function App() {
         disabled={loading}
         style={styles.button}
       >
-        {loading ? "Processing..." : "🚀 Upscale ke 1080p HD"}
+        {loading ? "Processing..." : "🚀 Enhance Video"}
       </button>
 
-      {loading && <p style={{ marginTop: 20 }}>⏳ Sedang memproses video...</p>}
+      {loading && (
+        <div style={styles.progressContainer}>
+          <div
+            style={{
+              ...styles.progressBar,
+              width: `${progress}%`,
+            }}
+          ></div>
+        </div>
+      )}
     </div>
   );
 }
 
 const styles = {
   container: {
-    maxWidth: 500,
-    margin: "50px auto",
-    padding: 20,
-    textAlign: "center",
-    fontFamily: "Arial",
-    background: "#111",
+    maxWidth: 550,
+    margin: "40px auto",
+    padding: 25,
+    background: "#111827",
     color: "#fff",
-    borderRadius: 12,
+    borderRadius: 15,
+    fontFamily: "Arial",
   },
   title: {
-    marginBottom: 10,
+    marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: "#aaa",
+    color: "#9ca3af",
+    marginBottom: 20,
   },
-  input: {
+  options: {
+    marginTop: 15,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  button: {
+    width: "100%",
+    marginTop: 20,
+    padding: 12,
+    fontSize: 16,
+    background: "#7c3aed",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+    cursor: "pointer",
+  },
+  progressContainer: {
+    width: "100%",
+    background: "#374151",
+    borderRadius: 10,
+    marginTop: 15,
+    height: 10,
+  },
+  progressBar: {
+    height: "100%",
+    background: "#7c3aed",
+    borderRadius: 10,
+    transition: "width 0.4s ease",
+  },
+};
+
+export default App;  input: {
     marginTop: 20,
   },
   button: {
